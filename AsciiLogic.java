@@ -134,6 +134,15 @@ public class AsciiLogic {
 		return curGate;
 	}
 
+	public static final String makeSymbol(byte[] symbol) {
+		try {
+			return new String(symbol, "US-ASCII");
+		} catch(java.io.UnsupportedEncodingException uee) {
+			uee.printStackTrace();
+			throw new RuntimeException("Unexpected encoding error, check your compilation version.",uee);
+		}
+	}
+
 	class StringIterator {
 		private String interior = null;
 
@@ -223,21 +232,11 @@ public class AsciiLogic {
 	}
 
 	class NotGate implements Gate {
-		private final String SYMBOL;//=NotGate.symbol();
-		private final String symbol() {
-			try {
-				return new String(new byte[]{(byte)0xB3,0x3E,0x6F},"US-ASCII");
-			} catch(java.io.UnsupportedEncodingException uee) {
-				uee.printStackTrace();
-				return "|o>";
-			}
-		}
+		private final String SYMBOL=AsciiLogic.makeSymbol(new byte[]{(byte)0xB3,0x3E,0x6F});
 
 		private Gate next = null;
 		private List<Gate> prior = null;
 		public NotGate() {
-			super();
-			SYMBOL = symbol();
 			this.next = null;
 			this.prior = new ArrayList<Gate>();
 		}
@@ -298,7 +297,7 @@ public class AsciiLogic {
 	}
 
 	class AndGate extends MultiGate {
-		private final String SYMBOL=new String(new byte[]{(byte)0xB3,0x26,0x26},"US-ASCII");
+		private final String SYMBOL=AsciiLogic.makeSymbol(new byte[]{(byte)0xB3,0x26,0x26});
 		public AndGate() {
 			super();
 		}
@@ -308,7 +307,7 @@ public class AsciiLogic {
 	}
 
 	class OrGate extends MultiGate {
-		private final String SYMBOL=new String(new byte[]{(byte)0xB3,0x4F,0x52},"US-ASCII");
+		private final String SYMBOL=AsciiLogic.makeSymbol(new byte[]{(byte)0xB3,0x4F,0x52});
 		public OrGate() {
 			super();
 		}
