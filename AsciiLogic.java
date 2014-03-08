@@ -12,7 +12,7 @@ public class AsciiLogic {
 		System.out.print("Sum of products (A*B+B'*C) equation to draw?");
 		Scanner input = new Scanner(System.in);
 
-		Gate tree = parse(input.getLine());
+		Gate tree = parse(input.nextLine());
 
 		outputTree(tree);
 	}
@@ -52,7 +52,7 @@ public class AsciiLogic {
 					sop.step(); // move "iterator" forward
 					curGate = not;
 					break;
-				else:
+				default:
 					symbol.append(sop.next());
 					break;
 			}
@@ -80,7 +80,7 @@ public class AsciiLogic {
 					return curGate;
 				case '\'': // unprocessed NOT
 					throw new RuntimeException("NOT encountered unexpectedly.");
-				else: // find the next term for this AND
+				default: // find the next term for this AND
 					Gate term = resolveSymbol(sop);
 					if (curGate == null) { // first term?
 						curGate = term;
@@ -102,8 +102,8 @@ public class AsciiLogic {
 		return curGate;
 	}
 
-	private OrGate resolveSum(StringIterator sop) {
-		OrGate curGate = null;
+	private Gate resolveSum(StringIterator sop) {
+		Gate curGate = null;
 		while (sop.hasNext()) {
 			switch(sop.peekNext()) { // look ahead
 				case '*':
@@ -112,7 +112,7 @@ public class AsciiLogic {
 				case '+': // sum symbol, indicates another term ahead.
 					sop.step();
 					break;
-				else: // next term
+				default: // next term
 					Gate term = resolveProduct(sop);
 					if (curGate == null) { // first term?
 						curGate = term;
@@ -142,7 +142,7 @@ public class AsciiLogic {
 		public StringIterator(String iter){
 			interior = iter;
 			if (interior == null) {
-				throw new InvalidArgumentException("String to iterate must not be null");
+				throw new IllegalArgumentException("String to iterate must not be null");
 			}
 			curLocation = -1;
 		}
@@ -151,13 +151,14 @@ public class AsciiLogic {
 			if (curLocation < interior.length()) {
 				return true;
 			}
+			return false;
 		}
 
 		public char peekNext() {
 			if (hasNext()) {
 				return interior.charAt(curLocation+1);
 			} else {
-				throw new InvalidIndexException("Cannot peek beyond end of string!");
+				throw new IndexOutOfBoundsException("Cannot peek beyond end of string!");
 			}
 		}
 
@@ -165,7 +166,7 @@ public class AsciiLogic {
 			if (hasNext()) {
 				return interior.charAt(curLocation++);
 			} else {
-				throw new InvalidIndexException("Cannot give a character beyond end of string!");
+				throw new IndexOutOfBoundsException("Cannot give a character beyond end of string!");
 			}
 		}
 
@@ -183,13 +184,13 @@ public class AsciiLogic {
 	}
 
 	interface Gate {
-		List<Gate> getPriors();
-		void setPriors(List<Gate> priors);
-		void addPrior(Gate prior)
-		Gate getNext();
-		void setNext(Gate next);
-		String getSymbol();
-		void setSymbol(String symbol);
+		public List<Gate> getPriors();
+		public void setPriors(List<Gate> priors);
+		public void addPrior(Gate prior);
+		public Gate getNext();
+		public void setNext(Gate next);
+		public String getSymbol();
+		public void setSymbol(String symbol);
 	}
 
 	class Input implements Gate {
@@ -198,53 +199,72 @@ public class AsciiLogic {
 		public Input(String name) {
 			this.name = name;
 		}
-		List<Gate> getPriors() {
+		public List<Gate> getPriors() {
 			return null;
 		}
-		void setPriors(List<Gate> priors) {
+		public void setPriors(List<Gate> priors) {
 			return;
 		}
-		void addPrior(Gate prior) {
+		public void addPrior(Gate prior) {
 			return;
 		}
-		Gate getNext() {
+		public Gate getNext() {
 			return next;
 		}
-		void setNext(Gate next) {
+		public void setNext(Gate next) {
 			this.next = next;
 		}
-		String getSymbol() {
+		public String getSymbol() {
 			return name;
+		}
+		public void setSymbol(String symbol) {
+			this.name = symbol;
 		}
 	}
 
 	class NotGate implements Gate {
-		public static final String SYMBOL=new String(new char[]{179,'>','o'},"US-ASCII");
-		private Gate next = null;
-		private Gate prior = null;
-		public NotGate() {
-			this.next = null;
-			this.prior = null;
-		}
-		List<Gate> getPriors() {
-			return new ArrayList<Gate>(new Gate[]{prior});
-		}
-		void setPriors(List<Gate> priors) {
-			if (priors != null && priors.size() > 0) {
-				this.prior = priors.get(0);
+		private final String SYMBOL;//=NotGate.symbol();
+		private final String symbol() {
+			try {
+				return new String(new byte[]{(byte)0xB3,0x3E,0x6F},"US-ASCII");
+			} catch(java.io.UnsupportedEncodingException uee) {
+				uee.printStackTrace();
+				return "|o>";
 			}
 		}
-		void addPrior(Gate prior) {
-			this.prior = prior;
+
+		private Gate next = null;
+		private List<Gate> prior = null;
+		public NotGate() {
+			super();
+			SYMBOL = symbol();
+			this.next = null;
+			this.prior = new ArrayList<Gate>();
 		}
-		void setNext(Gate next) {
+		public List<Gate> getPriors() {
+			return prior;
+		}
+		public void setPriors(List<Gate> priors) {
+			if (priors != null && priors.size() > 0) {
+				this.prior.clear();
+				this.prior.add(priors.get(0));
+			}
+		}
+		public void addPrior(Gate prior) {
+			this.prior.clear();
+			this.prior.add(prior);
+		}
+		public void setNext(Gate next) {
 			this.next = next;
 		}
-		Gate getNext() {
+		public Gate getNext() {
 			return next;
 		}
-		String getSymbol() {
-			return NotGate.SYMBOL;
+		public void setSymbol(String symbol) {
+			return;
+		}
+		public String getSymbol() {
+			return SYMBOL;
 		}
 	}
 
@@ -255,42 +275,45 @@ public class AsciiLogic {
 			this.next = null;
 			this.priors = new ArrayList<Gate>();
 		}
-		List<Gate> getPriors() {
+		public List<Gate> getPriors() {
 			return priors;
 		}
-		void setPriors(List<Gate> priors) {
+		public void setPriors(List<Gate> priors) {
 			if (priors != null) {
 				this.priors = priors;
 			}
 		}
-		void addPrior(Gate prior) {
+		public void addPrior(Gate prior) {
 			priors.add(prior);
 		}
-		void setNext(Gate next) {
+		public void setNext(Gate next) {
 			this.next = next;
 		}
-		Gate getNext() {
+		public Gate getNext() {
 			return next;
+		}
+		public void setSymbol(String symbol) {
+			return;
 		}
 	}
 
-	class AndGate implements MultiGate {
-		public static final String SYMBOL=new String(new char[]{179,'&','&'},"US-ASCII");
+	class AndGate extends MultiGate {
+		private final String SYMBOL=new String(new byte[]{(byte)0xB3,0x26,0x26},"US-ASCII");
 		public AndGate() {
 			super();
 		}
-		String getSymbol() {
-			return AndGate.SYMBOL;
+		public String getSymbol() {
+			return SYMBOL;
 		}
 	}
 
-	class OrGate implements MultiGate {
-		public static final String SYMBOL=new String(new char[]{179,'O','R'},"US-ASCII");
+	class OrGate extends MultiGate {
+		private final String SYMBOL=new String(new byte[]{(byte)0xB3,0x4F,0x52},"US-ASCII");
 		public OrGate() {
 			super();
 		}
-		String getSymbol() {
-			return OrGate.SYMBOL;
+		public String getSymbol() {
+			return SYMBOL;
 		}
 	}
 }
