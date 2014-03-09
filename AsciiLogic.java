@@ -25,13 +25,20 @@ public class AsciiLogic {
 	}
 
 	public void outputTree(Gate topNode) {
+		if (topNode instanceOf InputGate) {
+			System.out.print(topNode.getSymbol());
+			System.out.print(AsciiLogic.
+	}
+	public void debugTree(Gate topNode) {
 		// simple for testing!
 		LinkedList<Gate> queue = new LinkedList<Gate>();
 		queue.addLast(topNode);
 		while (!queue.isEmpty()) {
-			Gate curGate = queue.pollLast();
+			Gate curGate = queue.peekLast();
 			System.out.println(curGate.getSymbol());
-			queue.addAll(curGate.getPriors());
+			for (Gate prior : curGate.getPriors()) {
+				queue.addLast(prior);
+			}
 		}
 	}
 
@@ -42,9 +49,11 @@ public class AsciiLogic {
 			switch(sop.peekNext()) { // look ahead
 				case '*':
 				case '+': // sum/product/not terminators for symbols
+					System.out.println("Found symbol: " + symbol.toString());
 					curGate = new Input(symbol.toString());
 					break;
 				case '\'': // Handle NOT. Given sum-of-product, NOT only exists after inputs.
+					System.out.println("Found symbol NOT: " + symbol.toString());
 					Input term = new Input(symbol.toString());
 					NotGate not = new NotGate();
 					term.setNext(not);
@@ -53,14 +62,16 @@ public class AsciiLogic {
 					curGate = not;
 					break;
 				default:
+					System.out.println("Adding symbol: " +sop.peekNext());
 					symbol.append(sop.next());
 					break;
 			}
 			if (curGate!=null) break;
 		}
 		if (curGate == null && symbol.length() > 0) { // end case, last symbol in string
+			System.out.println("Found symbol after running out of string: " + symbol.toString());
 			curGate = new Input(symbol.toString());
-		} else {
+		} else if (curGate == null && symbol.length() == 0) {
 			throw new RuntimeException("No valid symbol discovered!");
 		}
 		return curGate;
@@ -71,9 +82,11 @@ public class AsciiLogic {
 		while (sop.hasNext()) {
 			switch(sop.peekNext()) { // look ahead
 				case '*': // product symbol, indicates we have another term ahead.
+					System.out.println("Finished one term of product, on to next");
 					sop.step(); // so move forward and let the other case handle it.
 					break;
 				case '+': // done with this product
+					System.out.println("Done with product, on to sum");
 					if (curGate == null ) {
 						throw new RuntimeException("No term available for OR gate");
 					}
@@ -83,14 +96,17 @@ public class AsciiLogic {
 				default: // find the next term for this AND
 					Gate term = resolveSymbol(sop);
 					if (curGate == null) { // first term?
+						System.out.println("Found first term of a product");
 						curGate = term;
 					} else if (!(curGate instanceof AndGate)) {
+						System.out.println("Had one term, found another of a product");
 						// have one term, let's add to it
 						AndGate and = new AndGate();
 						and.addPrior(curGate);
 						and.addPrior(term);
 						curGate = and;
-					} else { // already have a valid NOT gate.
+					} else { // already have a valid And gate.
+						System.out.println("Had multiple terms, found another of a product");
 						curGate.addPrior(term);
 					}
 					break;
@@ -110,19 +126,23 @@ public class AsciiLogic {
 				case '\'': // something's wrong!
 					throw new RuntimeException("Invalid SOP expression, operation before term");
 				case '+': // sum symbol, indicates another term ahead.
+					System.out.println("Done one term of Sum, on to next");
 					sop.step();
 					break;
 				default: // next term
 					Gate term = resolveProduct(sop);
 					if (curGate == null) { // first term?
+						System.out.println("Found first term of Sum");
 						curGate = term;
-					} if (!(curGate instanceof OrGate)) {
+					} else if (!(curGate instanceof OrGate)) {
+						System.out.println("Had one term, found another of a sum");
 						// have one term, add to new OrGate
 						OrGate sum = new OrGate();
 						sum.addPrior( curGate );
 						sum.addPrior( term );
 						curGate = sum;
 					} else {
+						System.out.println("Had multiple terms, found another of a sum");
 						curGate.addPrior( term );
 					}
 					break;
@@ -134,9 +154,13 @@ public class AsciiLogic {
 		return curGate;
 	}
 
+	public static final String makeSymbol(char[] symbol) {
+		return new String(symbol);
+	}
+
 	public static final String makeSymbol(byte[] symbol) {
 		try {
-			return new String(symbol, "US-ASCII");
+			return new String(symbol, "UTF-8");//US-ASCII");
 		} catch(java.io.UnsupportedEncodingException uee) {
 			uee.printStackTrace();
 			throw new RuntimeException("Unexpected encoding error, check your compilation version.",uee);
@@ -157,7 +181,7 @@ public class AsciiLogic {
 		}
 
 		public boolean hasNext() {
-			if (curLocation < interior.length()) {
+			if (curLocation+1 < interior.length()) {
 				return true;
 			}
 			return false;
@@ -173,7 +197,7 @@ public class AsciiLogic {
 
 		public char next() {
 			if (hasNext()) {
-				return interior.charAt(curLocation++);
+				return interior.charAt(++curLocation);
 			} else {
 				throw new IndexOutOfBoundsException("Cannot give a character beyond end of string!");
 			}
@@ -189,6 +213,12 @@ public class AsciiLogic {
 				return true;
 			}
 			return false;
+		}
+	}
+
+	class ExpressionException extends RuntimeException {
+		public ExpressionException(String problem) {
+			super(problem);
 		}
 	}
 
@@ -209,7 +239,7 @@ public class AsciiLogic {
 			this.name = name;
 		}
 		public List<Gate> getPriors() {
-			return null;
+			return new ArrayList<Gate>();
 		}
 		public void setPriors(List<Gate> priors) {
 			return;
