@@ -5,6 +5,7 @@ import java.util.LinkedList;
 import java.io.IOException;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.Arrays;
 
 public class AsciiLogic {
 	public static void main(String[] args) {
@@ -15,9 +16,10 @@ public class AsciiLogic {
 		System.out.print("Sum of products (A*B+B'*C) equation to draw?");
 		Scanner input = new Scanner(System.in);
 
-		Gate tree = parse(input.nextLine());
+		String in = input.nextLine();
+		Gate tree = parse(in);
 
-		outputTree(tree);
+		outputTree(tree, in);
 	}
 
 	public Gate parse(String sopString) {
@@ -27,41 +29,86 @@ public class AsciiLogic {
 		return finalGate;
 	}
 
-	public void outputTree(Gate topNode) {
+	public void outputTree(Gate topNode, String sopString) {
+		byte[] sop = sopString.getBytes();
 		List<Input> inputs = new LinkedList<Input>();
 		Map<String, Integer> info = new HashMap<String, Integer>();
 		info.put("Depth", 1);
 		info.put("SymLength", 0);
-		unwrap(topNode, inputs, Input.class, info, 1);
+		info.put("AndCount", 0);
+		info.put("NotCount", 0);
+		unwrap(topNode, inputs, info, 1);
 		System.out.println("Max Depth: " + info.get("Depth"));
 		System.out.println("Max SymLength: " + info.get("SymLength"));
+		System.out.println("Num AndGates: " + info.get("AndCount"));
+		System.out.println("Num NotGates: " + info.get("NotCount"));
 		if (inputs.size() < 1) {
 			System.out.println("No inputs, invalid structure!");
 		} else {
 			int nlines = inputs.size() * 2 - 1;
-			byte[][] output = new byte[nlines][];
+			int lineSize = info.get("SymLength") + info.get("Depth") * 7 + sop.length;
+			byte[][] output = new byte[nlines][lineSize];
 			int inSize = 0;
-			//for (int i = 0; i < nlines; i++) {
-			//	Input in : inputs) {
+			int maxLine = 0;
+			Input in = null;
+			// 
+			for (int i = 0; i < nlines; i++) {
+				int j = 0; // line pointer.
+				if (i % 2 == 0) {
+					in = inputs.get(i/2);
+					byte[] symbol = in.getSymbol();
+					System.arraycopy(symbol, 0, output[i], j, symbol.length);
+					j+=symbol.length;
+					Arrays.fill(output[i], j, j+info.get("SymLength") - symbol.length + 4, (byte)196);
+					j+= info.get("SymLength") - symbol.length + 4;
+					if (info.get("NotCount") > 0) {
+						if (in.getNext() != null && in.getNext() instanceof NotGate) {
+							symbol = in.getNext().getSymbol();
+							System.arraycopy(symbol, 0, output[i], j, symbol.length);
+							j += symbol.length;
+							Arrays.fill(output[i], j, j+4, (byte)196);
+							j += 4;
+						} else {
+							Arrays.fill(output[i], j, j+7, (byte)196);
+							j += 7;
+						}
+					}
+					if (j >maxLine) {
+						maxLine = j;
+					}
+				}
+				if (info.get("AndCount") > 0){
+					// do stuff
+				}
+				try {
+					System.out.write(output[i]);
+					System.out.write(new byte[]{(byte)0x0a, (byte)0x0d});
+				} catch (IOException ioe) {
+					ioe.printStackTrace();
+				}
+			}
 		}
 	}
 
-	@SuppressWarnings("unchecked")
-	private <T> void unwrap(Gate node, List<T> list, Class<T> clazz, Map<String, Integer> info,
-			int depth) {
+	private void unwrap(Gate node, List<Input> list, Map<String, Integer> info, int depth) {
 		int maxdepth = info.get("Depth");
 		if (depth > maxdepth) {
 			info.put("Depth", depth);
 		}
-		if (node.getClass().isAssignableFrom(clazz)) {
-			list.add((T)node);
+		if (node instanceof Input) {
+			list.add((Input)node);
 			int maxSymLength = info.get("SymLength");
 			if (node.getSymbol().length > maxSymLength) {
 				info.put("SymLength",node.getSymbol().length);
 			}
 		} else {
+			if (node instanceof AndGate) {
+				info.put("AndCount", info.get("AndCount") + 1);
+			} else if (node instanceof NotGate) {
+				info.put("NotCount", info.get("NotCount") + 1);
+			}
 			for (Gate child : node.getPriors()) {
-				unwrap(child, list, clazz, info, depth+1);
+				unwrap(child, list, info, depth+1);
 			}
 		}
 	}
