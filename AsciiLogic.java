@@ -2,6 +2,9 @@ import java.util.Scanner;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.LinkedList;
+import java.io.IOException;
+import java.util.Map;
+import java.util.HashMap;
 
 public class AsciiLogic {
 	public static void main(String[] args) {
@@ -25,17 +28,56 @@ public class AsciiLogic {
 	}
 
 	public void outputTree(Gate topNode) {
-		if (topNode instanceOf InputGate) {
-			System.out.print(topNode.getSymbol());
-			System.out.print(AsciiLogic.
+		List<Input> inputs = new LinkedList<Input>();
+		Map<String, Integer> info = new HashMap<String, Integer>();
+		info.put("Depth", 1);
+		info.put("SymLength", 0);
+		unwrap(topNode, inputs, Input.class, info, 1);
+		System.out.println("Max Depth: " + info.get("Depth"));
+		System.out.println("Max SymLength: " + info.get("SymLength"));
+		if (inputs.size() < 1) {
+			System.out.println("No inputs, invalid structure!");
+		} else {
+			int nlines = inputs.size() * 2 - 1;
+			byte[][] output = new byte[nlines][];
+			int inSize = 0;
+			//for (int i = 0; i < nlines; i++) {
+			//	Input in : inputs) {
+		}
 	}
+
+	@SuppressWarnings("unchecked")
+	private <T> void unwrap(Gate node, List<T> list, Class<T> clazz, Map<String, Integer> info,
+			int depth) {
+		int maxdepth = info.get("Depth");
+		if (depth > maxdepth) {
+			info.put("Depth", depth);
+		}
+		if (node.getClass().isAssignableFrom(clazz)) {
+			list.add((T)node);
+			int maxSymLength = info.get("SymLength");
+			if (node.getSymbol().length > maxSymLength) {
+				info.put("SymLength",node.getSymbol().length);
+			}
+		} else {
+			for (Gate child : node.getPriors()) {
+				unwrap(child, list, clazz, info, depth+1);
+			}
+		}
+	}
+
 	public void debugTree(Gate topNode) {
 		// simple for testing!
 		LinkedList<Gate> queue = new LinkedList<Gate>();
 		queue.addLast(topNode);
 		while (!queue.isEmpty()) {
-			Gate curGate = queue.peekLast();
-			System.out.println(curGate.getSymbol());
+			Gate curGate = queue.pollLast();
+			try {
+				System.out.write(curGate.getSymbol());
+			} catch (IOException ioe) {
+				System.err.println("Can't print symbol for " + curGate.getClass().getName() + ": " + ioe.getMessage());
+			}
+			System.out.println();
 			for (Gate prior : curGate.getPriors()) {
 				queue.addLast(prior);
 			}
@@ -228,8 +270,8 @@ public class AsciiLogic {
 		public void addPrior(Gate prior);
 		public Gate getNext();
 		public void setNext(Gate next);
-		public String getSymbol();
-		public void setSymbol(String symbol);
+		public byte[] getSymbol();
+		public void setSymbol(byte[] symbol);
 	}
 
 	class Input implements Gate {
@@ -253,16 +295,16 @@ public class AsciiLogic {
 		public void setNext(Gate next) {
 			this.next = next;
 		}
-		public String getSymbol() {
-			return name;
+		public byte[] getSymbol() {
+			return name.getBytes();
 		}
-		public void setSymbol(String symbol) {
-			this.name = symbol;
+		public void setSymbol(byte[] symbol) {
+			this.name = new String(symbol);
 		}
 	}
 
 	class NotGate implements Gate {
-		private final String SYMBOL=AsciiLogic.makeSymbol(new byte[]{(byte)0xB3,0x3E,0x6F});
+		private final byte[] SYMBOL=new byte[]{(byte)0xB3,0x3E,0x6F};
 
 		private Gate next = null;
 		private List<Gate> prior = null;
@@ -289,10 +331,10 @@ public class AsciiLogic {
 		public Gate getNext() {
 			return next;
 		}
-		public void setSymbol(String symbol) {
+		public void setSymbol(byte[] symbol) {
 			return;
 		}
-		public String getSymbol() {
+		public byte[] getSymbol() {
 			return SYMBOL;
 		}
 	}
@@ -321,27 +363,27 @@ public class AsciiLogic {
 		public Gate getNext() {
 			return next;
 		}
-		public void setSymbol(String symbol) {
+		public void setSymbol(byte[] symbol) {
 			return;
 		}
 	}
 
 	class AndGate extends MultiGate {
-		private final String SYMBOL=AsciiLogic.makeSymbol(new byte[]{(byte)0xB3,0x26,0x26});
+		private final byte[] SYMBOL=new byte[]{(byte)0xB3,0x26,0x26};
 		public AndGate() {
 			super();
 		}
-		public String getSymbol() {
+		public byte[] getSymbol() {
 			return SYMBOL;
 		}
 	}
 
 	class OrGate extends MultiGate {
-		private final String SYMBOL=AsciiLogic.makeSymbol(new byte[]{(byte)0xB3,0x4F,0x52});
+		private final byte[] SYMBOL=new byte[]{(byte)0xB3,0x4F,0x52};
 		public OrGate() {
 			super();
 		}
-		public String getSymbol() {
+		public byte[] getSymbol() {
 			return SYMBOL;
 		}
 	}
